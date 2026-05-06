@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Coffee, ShoppingCart, List, CheckCircle, Clock, RefreshCw, X, Filter, LogIn, LogOut, Trash2 } from 'lucide-react';
 
-const API_URL = 'http://localhost:3001';
+const API_URL = 'https://cafeteria-sema.onrender.com';
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdSI3GHCCfBWQGE7MYCMetuovFD3E5Ie5Gaa5WS_dnVfgFCRA/viewform';
 
 function App() {
