@@ -1,0 +1,35 @@
+{
+  "productos": [
+    {
+      "id": 1,
+      "nombre": "Café Americano",
+      "precio": 2500,
+      "imagen": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=500&auto=format&fit=crop"
+    },
+    {
+      "id": 2,
+      "nombre": "Capuchino",
+      "precio": 3500,
+      "imagen": "https://images.unsplash.com/photo-1534778101976-62847782c213?q=80&w=500&auto=format&fit=crop"
+    },
+    {
+      "id": 3,
+      "nombre": "Sandwich Jamón y Queso",
+      "precio": 4500,
+      "imagen": "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?q=80&w=500&auto=format&fit=crop"
+    },
+    {
+      "id": 4,
+      "nombre": "Empanada de Carne",
+      "precio": 2000,
+      "imagen": "https://images.unsplash.com/photo-1628102420281-22920f66952d?q=80&w=500&auto=format&fit=crop"
+    },
+    {
+      "id": 5,
+      "nombre": "Jugo Natural",
+      "precio": 3000,
+      "imagen": "https://images.unsplash.com/photo-1613478223719-2ab802602423?q=80&w=500&auto=format&fit=crop"
+    }
+  ],
+  "pedidos": []
+}
