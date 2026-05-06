@@ -1,33 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Coffee, ShoppingCart, List, CheckCircle, Clock, RefreshCw } from 'lucide-react';
+import { Coffee, ShoppingCart, List, CheckCircle, Clock, RefreshCw, X, Filter, LogIn, LogOut, Trash2 } from 'lucide-react';
 
 const API_URL = 'http://localhost:3001';
-// Reemplaza esto con el link real de tu Google Form
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdSI3GHCCfBWQGE7MYCMetuovFD3E5Ie5Gaa5WS_dnVfgFCRA/viewform';
 
 function App() {
   const [view, setView] = useState('menu'); // 'menu' o 'admin'
   const [productos, setProductos] = useState([]);
   const [pedidos, setPedidos] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [cart, setCart] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [filter, setFilter] = useState('Todos');
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [loginData, setLoginData] = useState({ user: '', pass: '' });
 
   useEffect(() => {
     fetchProductos();
-    if (view === 'admin') {
+  }, []);
+
+  useEffect(() => {
+    if (view === 'admin' && isAdminLoggedIn) {
       fetchPedidos();
-      const interval = setInterval(fetchPedidos, 5000); // Auto-refresh cada 5s
+      const interval = setInterval(fetchPedidos, 5000);
       return () => clearInterval(interval);
     }
-  }, [view]);
+  }, [view, isAdminLoggedIn]);
 
   const fetchProductos = async () => {
     try {
       const res = await fetch(`${API_URL}/productos`);
       const data = await res.json();
       setProductos(data);
-    } catch (err) {
-      console.error("Error fetching productos:", err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const fetchPedidos = async () => {
@@ -35,8 +39,28 @@ function App() {
       const res = await fetch(`${API_URL}/pedidos`);
       const data = await res.json();
       setPedidos(data.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
-    } catch (err) {
-      console.error("Error fetching pedidos:", err);
+    } catch (err) { console.error(err); }
+  };
+
+  const addToCart = (product) => {
+    const exists = cart.find(item => item.id === product.id);
+    if (exists) {
+      setCart(cart.map(item => item.id === product.id ? { ...item, qty: item.qty + 1 } : item));
+    } else {
+      setCart([...cart, { ...product, qty: 1 }]);
+    }
+  };
+
+  const removeFromCart = (id) => {
+    setCart(cart.filter(item => item.id !== id));
+  };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (loginData.user === 'admin' && loginData.pass === 'sema123') {
+      setIsAdminLoggedIn(true);
+    } else {
+      alert('Credenciales incorrectas');
     }
   };
 
@@ -48,139 +72,141 @@ function App() {
         body: JSON.stringify({ estado: nuevoEstado })
       });
       fetchPedidos();
-    } catch (err) {
-      console.error("Error updating status:", err);
-    }
+    } catch (err) { console.error(err); }
   };
+
+  const filteredProducts = filter === 'Todos' 
+    ? productos 
+    : productos.filter(p => p.categoria === filter);
+
+  const cartTotal = cart.reduce((acc, item) => acc + (item.precio * item.qty), 0);
 
   return (
     <div className="app-container">
+      {/* HEADER */}
       <header>
-        <div className="logo">
-          <Coffee style={{ marginRight: '10px' }} inline />
-          CAFETERÍA SEMA
+        <div className="logo" onClick={() => setView('menu')}>
+          <Coffee size={28} />
+          <span>CAFETERÍA SEMA</span>
         </div>
         <nav>
-          <button 
-            className={view === 'menu' ? 'active' : ''} 
-            onClick={() => setView('menu')}
-          >
-            Menú Estudiantes
-          </button>
-          <button 
-            className={view === 'admin' ? 'active' : ''} 
-            onClick={() => setView('admin')}
-          >
-            Panel Encargada
-          </button>
+          <button className={view === 'menu' ? 'active' : ''} onClick={() => setView('menu')}>Catálogo</button>
+          <button className={view === 'admin' ? 'active' : ''} onClick={() => setView('admin')}>Panel Encargada</button>
+          <div className="cart-trigger" onClick={() => setIsCartOpen(true)}>
+            <button><ShoppingCart size={20} /></button>
+            {cart.length > 0 && <span className="cart-count">{cart.length}</span>}
+          </div>
         </nav>
       </header>
 
+      {/* CART DRAWER */}
+      <div className={`cart-drawer ${isCartOpen ? 'open' : ''}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <h2>Tu Pedido</h2>
+          <X size={24} onClick={() => setIsCartOpen(false)} style={{ cursor: 'pointer' }} />
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {cart.map(item => (
+            <div key={item.id} className="cart-item">
+              <div>
+                <h4>{item.nombre}</h4>
+                <p>{item.qty} x ${item.precio.toLocaleString()}</p>
+              </div>
+              <Trash2 size={18} color="#e63946" onClick={() => removeFromCart(item.id)} style={{ cursor: 'pointer' }} />
+            </div>
+          ))}
+          {cart.length === 0 && <p>El carrito está vacío</p>}
+        </div>
+        <div style={{ borderTop: '2px solid #eee', paddingTop: '1rem' }}>
+          <h3>Total: ${cartTotal.toLocaleString()}</h3>
+          <a href={GOOGLE_FORM_URL} target="_blank" className="btn-primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+            Confirmar en Google Forms
+          </a>
+        </div>
+      </div>
+
+      {/* VIEWS */}
       {view === 'menu' ? (
         <main className="fade-in">
-          <section className="hero">
-            <h1>Bienvenido a la Cafetería</h1>
-            <p>Pide tus snacks favoritos de forma rápida y sencilla.</p>
-          </section>
+          <div className="filters">
+            {['Todos', 'Bebidas', 'Snacks', 'Comidas'].map(cat => (
+              <button key={cat} className={`filter-btn ${filter === cat ? 'active' : ''}`} onClick={() => setFilter(cat)}>
+                {cat}
+              </button>
+            ))}
+          </div>
 
-          <div className="container">
-            <h2 style={{ marginBottom: '2rem', textAlign: 'center', color: '#6f4e37' }}>Nuestro Menú</h2>
-            <div className="product-grid">
-              {productos.map(prod => (
-                <div key={prod.id} className="card">
+          <div className="product-grid">
+            {filteredProducts.map(prod => (
+              <div key={prod.id} className="card">
+                <div className="card-img-container">
                   <img src={prod.imagen} alt={prod.nombre} className="card-img" />
-                  <div className="card-content">
-                    <h3 className="card-title">{prod.nombre}</h3>
-                    <p className="card-price">${prod.precio.toLocaleString()}</p>
-                    <a 
-                      href={GOOGLE_FORM_URL} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="order-btn"
-                    >
-                      <ShoppingCart size={18} />
-                      Hacer pedido
-                    </a>
-                  </div>
+                  <span className="category-tag">{prod.categoria}</span>
                 </div>
-              ))}
-            </div>
+                <div className="card-content" style={{ padding: '1.5rem' }}>
+                  <h3 style={{ marginBottom: '0.5rem' }}>{prod.nombre}</h3>
+                  <p style={{ color: '#d4a373', fontWeight: '700', fontSize: '1.2rem', marginBottom: '1rem' }}>
+                    ${prod.precio.toLocaleString()}
+                  </p>
+                  <button className="btn-primary" onClick={() => addToCart(prod)}>
+                    Añadir al carrito
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </main>
       ) : (
-        <main className="container fade-in" style={{ marginTop: '3rem' }}>
-          <div className="admin-view">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2>Gestión de Pedidos</h2>
-              <button onClick={fetchPedidos} className="action-btn">
-                <RefreshCw size={18} />
-              </button>
+        <main className="fade-in">
+          {!isAdminLoggedIn ? (
+            <div className="login-container">
+              <LogIn size={48} color="#6f4e37" style={{ marginBottom: '1rem' }} />
+              <h2>Acceso Administrativo</h2>
+              <p style={{ marginBottom: '1.5rem', color: '#666' }}>Ingresa tus credenciales para ver los pedidos.</p>
+              <form onSubmit={handleLogin}>
+                <input type="text" placeholder="Usuario" onChange={e => setLoginData({...loginData, user: e.target.value})} />
+                <input type="password" placeholder="Contraseña" onChange={e => setLoginData({...loginData, pass: e.target.value})} />
+                <button type="submit" className="btn-primary">Entrar al Panel</button>
+              </form>
             </div>
-            
-            <table>
-              <thead>
-                <tr>
-                  <th>Estudiante</th>
-                  <th>Grado</th>
-                  <th>Producto</th>
-                  <th>Cant.</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pedidos.length === 0 ? (
+          ) : (
+            <div className="admin-view">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2>Pedidos Recibidos</h2>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={fetchPedidos} className="filter-btn"><RefreshCw size={18} /></button>
+                  <button onClick={() => setIsAdminLoggedIn(false)} className="filter-btn"><LogOut size={18} /></button>
+                </div>
+              </div>
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '3rem' }}>
-                      No hay pedidos registrados aún.
-                    </td>
+                    <th>Estudiante</th>
+                    <th>Grado</th>
+                    <th>Producto</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
                   </tr>
-                ) : (
-                  pedidos.map(pedido => (
-                    <tr key={pedido.id}>
-                      <td><strong>{pedido.estudiante}</strong></td>
-                      <td>{pedido.grado}</td>
-                      <td>{pedido.producto}</td>
-                      <td>{pedido.cantidad}</td>
+                </thead>
+                <tbody>
+                  {pedidos.map(p => (
+                    <tr key={p.id}>
+                      <td>{p.estudiante}</td>
+                      <td>{p.grado}</td>
+                      <td>{p.producto}</td>
+                      <td><span className={`status-badge status-${p.estado}`}>{p.estado}</span></td>
                       <td>
-                        <span className={`status-badge status-${pedido.estado}`}>
-                          {pedido.estado}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          {pedido.estado === 'pendiente' && (
-                            <button 
-                              onClick={() => updateEstado(pedido.id, 'preparacion')}
-                              className="action-btn"
-                              title="Poner en preparación"
-                            >
-                              <Clock size={16} color="#1971c2" />
-                            </button>
-                          )}
-                          {pedido.estado !== 'listo' && (
-                            <button 
-                              onClick={() => updateEstado(pedido.id, 'listo')}
-                              className="action-btn"
-                              title="Marcar como listo"
-                            >
-                              <CheckCircle size={16} color="#2b8a3e" />
-                            </button>
-                          )}
-                        </div>
+                        {p.estado === 'pendiente' && <button onClick={() => updateEstado(p.id, 'preparacion')} title="Preparar"><Clock size={16} /></button>}
+                        {p.estado !== 'listo' && <button onClick={() => updateEstado(p.id, 'listo')} title="Listo"><CheckCircle size={16} /></button>}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </main>
       )}
-
-      <footer style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>
-        <p>&copy; 2024 Cafetería Sema - Proyecto Educativo</p>
-      </footer>
     </div>
   );
 }
