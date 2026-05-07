@@ -95,8 +95,8 @@ app.get('/pedidos', (req, res) => {
 // ==========================================
 // CONFIGURACIÓN DE NOTIFICACIONES
 // ==========================================
-// NOTA: Reemplazaremos esto con la URL que nos dé Make.com
-const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || 'PON_AQUI_TU_WEBHOOK_DE_MAKE';
+// URL del Webhook de Make.com para enviar correos de "Pedido Listo"
+const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || 'https://hook.us2.make.com/w8nhy9oz15ae9lrbjj313acip1eiyg79';
 
 /**
  * @route POST /pedidos
