@@ -309,6 +309,7 @@ function App() {
                     <thead>
                       <tr>
                         <th>Estudiante</th>
+                        <th>Correo</th>
                         <th>Grado</th>
                         <th>Producto</th>
                         <th>Cantidad</th>
@@ -320,7 +321,7 @@ function App() {
                     <tbody>
                       {pedidos.length === 0 ? (
                         <tr>
-                          <td colSpan="7" style={{ textAlign: 'center', color: '#888', padding: '2rem' }}>
+                          <td colSpan="8" style={{ textAlign: 'center', color: '#888', padding: '2rem' }}>
                             No hay pedidos pendientes en este momento.
                           </td>
                         </tr>
@@ -328,6 +329,7 @@ function App() {
                         pedidos.map(p => (
                           <tr key={p.id}>
                             <td style={{ fontWeight: '500' }}>{p.estudiante}</td>
+                            <td style={{ fontSize: '0.85rem', color: '#666' }}>{p.correo || 'N/A'}</td>
                             <td>{p.grado}</td>
                             <td>{p.producto}</td>
                             <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{p.cantidad}</td>

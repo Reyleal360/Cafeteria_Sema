@@ -92,13 +92,19 @@ app.get('/pedidos', (req, res) => {
     }
 });
 
+// ==========================================
+// CONFIGURACIÓN DE NOTIFICACIONES
+// ==========================================
+// NOTA: Reemplazaremos esto con la URL que nos dé Make.com
+const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || 'PON_AQUI_TU_WEBHOOK_DE_MAKE';
+
 /**
  * @route POST /pedidos
  * @description Recibe y almacena un nuevo pedido. (Generalmente llamado vía webhook desde Make/Zapier)
  */
 app.post('/pedidos', (req, res) => {
     try {
-        const { estudiante, grado, producto, cantidad, hora } = req.body;
+        const { estudiante, correo, grado, producto, cantidad, hora } = req.body;
         
         // Validación de datos de entrada (Data Validation)
         if (!estudiante || typeof estudiante !== 'string' || estudiante.trim() === '') {
@@ -115,6 +121,7 @@ app.post('/pedidos', (req, res) => {
         const nuevoPedido = {
             id: Date.now(), // Generación de ID único basado en timestamp
             estudiante: estudiante.trim(),
+            correo: correo ? correo.trim() : 'Sin correo', // Se agrega el correo
             grado: grado || 'N/A', // Valor por defecto si no se especifica
             producto: producto.trim(),
             cantidad: Number(cantidad) || 1, // Asegura que sea número
@@ -138,7 +145,7 @@ app.post('/pedidos', (req, res) => {
  * @route PUT /pedidos/:id
  * @description Actualiza el estado de un pedido específico (ej: de "pendiente" a "listo").
  */
-app.put('/pedidos/:id', (req, res) => {
+app.put('/pedidos/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { estado } = req.body;
@@ -157,10 +164,35 @@ app.put('/pedidos/:id', (req, res) => {
 
         // Actualización del estado
         db.pedidos[pedidoIndex].estado = estado;
+        const pedidoActualizado = db.pedidos[pedidoIndex];
         writeDB(db);
 
         console.log(`🔄 Pedido ${id} actualizado a estado: ${estado}`);
-        res.status(200).json(db.pedidos[pedidoIndex]);
+
+        // ==========================================
+        // LÓGICA DE NOTIFICACIÓN POR CORREO (MAKE.COM)
+        // ==========================================
+        if (estado === 'listo' && pedidoActualizado.correo && pedidoActualizado.correo !== 'Sin correo') {
+            try {
+                if (MAKE_WEBHOOK_URL.startsWith('http')) {
+                    // Llamamos al webhook de Make.com enviando los datos del estudiante
+                    fetch(MAKE_WEBHOOK_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            estudiante: pedidoActualizado.estudiante,
+                            correo: pedidoActualizado.correo,
+                            producto: pedidoActualizado.producto
+                        })
+                    }).catch(err => console.error('Error disparando el Webhook de Make:', err));
+                    console.log(`📧 Webhook disparado para enviar correo a ${pedidoActualizado.correo}`);
+                }
+            } catch (webhookError) {
+                console.error('Error en la llamada al webhook:', webhookError);
+            }
+        }
+
+        res.status(200).json(pedidoActualizado);
     } catch (error) {
         res.status(500).json({ error: 'Error interno al actualizar el pedido.' });
     }
