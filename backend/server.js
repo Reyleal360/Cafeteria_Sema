@@ -1,3 +1,9 @@
+/**
+ * API Principal - Cafetería SENA
+ * Este servidor maneja el catálogo de productos y los pedidos de los estudiantes.
+ * Desarrollado para presentación académica.
+ */
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -8,71 +14,164 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_PATH = path.join(__dirname, 'db.json');
 
+// ==========================================
+// MIDDLEWARES GLOBALES
+// ==========================================
+// Habilita el acceso desde cualquier origen (CORS) - Necesario para que Vercel se comunique con Render
 app.use(cors());
+// Parsea el cuerpo de las peticiones HTTP a formato JSON
 app.use(bodyParser.json());
 
-// Helper function to read/write DB
-const readDB = () => JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
-const writeDB = (data) => fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+// Middleware de registro (Logging) para auditar qué peticiones llegan al servidor
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
 
-// Endpoints
+// ==========================================
+// FUNCIONES AUXILIARES (PERSISTENCIA DE DATOS)
+// ==========================================
+/**
+ * Lee la base de datos JSON de forma segura.
+ * Utiliza try/catch para evitar caídas del servidor si el archivo está corrupto.
+ * @returns {Object} El estado actual de la base de datos.
+ */
+const readDB = () => {
+    try {
+        if (!fs.existsSync(DB_PATH)) {
+            // Si el archivo no existe por alguna razón, retorna una estructura vacía por defecto
+            return { productos: [], pedidos: [] };
+        }
+        const data = fs.readFileSync(DB_PATH, 'utf-8');
+        return JSON.parse(data);
+    } catch (error) {
+        console.error('❌ Error al leer la base de datos:', error);
+        return { productos: [], pedidos: [] }; // Fallback seguro
+    }
+};
 
-// 1. GET /productos - Obtener lista de productos
+/**
+ * Escribe los datos en el archivo JSON.
+ * @param {Object} data - La estructura completa de la base de datos a guardar.
+ */
+const writeDB = (data) => {
+    try {
+        fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (error) {
+        console.error('❌ Error al escribir en la base de datos:', error);
+    }
+};
+
+// ==========================================
+// RUTAS (ENDPOINTS)
+// ==========================================
+
+/**
+ * @route GET /productos
+ * @description Retorna el catálogo completo de productos disponibles en la cafetería.
+ */
 app.get('/productos', (req, res) => {
-    const db = readDB();
-    res.json(db.productos);
+    try {
+        const db = readDB();
+        res.status(200).json(db.productos);
+    } catch (error) {
+        res.status(500).json({ error: 'Error interno del servidor al obtener productos.' });
+    }
 });
 
-// 2. GET /pedidos - Obtener lista de pedidos
+/**
+ * @route GET /pedidos
+ * @description Retorna la lista de pedidos realizados por los estudiantes (Uso administrativo).
+ */
 app.get('/pedidos', (req, res) => {
-    const db = readDB();
-    res.json(db.pedidos);
+    try {
+        const db = readDB();
+        res.status(200).json(db.pedidos);
+    } catch (error) {
+        res.status(500).json({ error: 'Error interno del servidor al obtener pedidos.' });
+    }
 });
 
-// 3. POST /pedidos - Crear un nuevo pedido
-// Este endpoint será llamado por Zapier/Make cuando se llene el Google Form
+/**
+ * @route POST /pedidos
+ * @description Recibe y almacena un nuevo pedido. (Generalmente llamado vía webhook desde Make/Zapier)
+ */
 app.post('/pedidos', (req, res) => {
-    const { estudiante, grado, producto, cantidad } = req.body;
-    
-    if (!estudiante || !producto) {
-        return res.status(400).json({ error: 'Faltan datos del pedido' });
+    try {
+        const { estudiante, grado, producto, cantidad } = req.body;
+        
+        // Validación de datos de entrada (Data Validation)
+        if (!estudiante || typeof estudiante !== 'string' || estudiante.trim() === '') {
+            return res.status(400).json({ error: 'El nombre del estudiante es obligatorio y debe ser texto válido.' });
+        }
+        
+        if (!producto || typeof producto !== 'string' || producto.trim() === '') {
+            return res.status(400).json({ error: 'El producto es obligatorio.' });
+        }
+
+        const db = readDB();
+        
+        // Creación del objeto pedido con metadatos
+        const nuevoPedido = {
+            id: Date.now(), // Generación de ID único basado en timestamp
+            estudiante: estudiante.trim(),
+            grado: grado || 'N/A', // Valor por defecto si no se especifica
+            producto: producto.trim(),
+            cantidad: Number(cantidad) || 1, // Asegura que sea número
+            estado: 'pendiente', // Estados posibles: pendiente, preparacion, listo
+            fecha: new Date().toISOString()
+        };
+
+        db.pedidos.push(nuevoPedido);
+        writeDB(db);
+
+        console.log(`✅ Nuevo pedido registrado para: ${estudiante} (${producto})`);
+        res.status(201).json(nuevoPedido);
+    } catch (error) {
+        console.error('Error al procesar el POST /pedidos:', error);
+        res.status(500).json({ error: 'Error interno al procesar el pedido.' });
     }
-
-    const db = readDB();
-    const nuevoPedido = {
-        id: Date.now(),
-        estudiante,
-        grado,
-        producto,
-        cantidad: cantidad || 1,
-        estado: 'pendiente',
-        fecha: new Date().toISOString()
-    };
-
-    db.pedidos.push(nuevoPedido);
-    writeDB(db);
-
-    res.status(201).json(nuevoPedido);
 });
 
-// 4. PUT /pedidos/:id - Actualizar estado del pedido
+/**
+ * @route PUT /pedidos/:id
+ * @description Actualiza el estado de un pedido específico (ej: de "pendiente" a "listo").
+ */
 app.put('/pedidos/:id', (req, res) => {
-    const { id } = req.params;
-    const { estado } = req.body;
+    try {
+        const { id } = req.params;
+        const { estado } = req.body;
 
-    const db = readDB();
-    const pedidoIndex = db.pedidos.findIndex(p => p.id == id);
+        // Validar que se haya enviado un estado
+        if (!estado) {
+            return res.status(400).json({ error: 'Se requiere especificar el nuevo estado.' });
+        }
 
-    if (pedidoIndex === -1) {
-        return res.status(404).json({ error: 'Pedido no encontrado' });
+        const db = readDB();
+        const pedidoIndex = db.pedidos.findIndex(p => String(p.id) === String(id));
+
+        if (pedidoIndex === -1) {
+            return res.status(404).json({ error: `Pedido con ID ${id} no encontrado.` });
+        }
+
+        // Actualización del estado
+        db.pedidos[pedidoIndex].estado = estado;
+        writeDB(db);
+
+        console.log(`🔄 Pedido ${id} actualizado a estado: ${estado}`);
+        res.status(200).json(db.pedidos[pedidoIndex]);
+    } catch (error) {
+        res.status(500).json({ error: 'Error interno al actualizar el pedido.' });
     }
-
-    db.pedidos[pedidoIndex].estado = estado;
-    writeDB(db);
-
-    res.json(db.pedidos[pedidoIndex]);
 });
 
+// ==========================================
+// INICIALIZACIÓN DEL SERVIDOR
+// ==========================================
 app.listen(PORT, () => {
-    console.log(`Servidor de Cafetería corriendo en http://localhost:${PORT}`);
+    console.log('\n=======================================');
+    console.log(`🚀 SERVIDOR ACTIVO Y ESCUCHANDO`);
+    console.log(`📡 Puerto: ${PORT}`);
+    console.log(`🛠️  Entorno: ${process.env.NODE_ENV || 'Desarrollo'}`);
+    console.log('=======================================\n');
 });
