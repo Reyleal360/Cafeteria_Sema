@@ -312,6 +312,7 @@ function App() {
                         <th>Grado</th>
                         <th>Producto</th>
                         <th>Cantidad</th>
+                        <th>Hora</th>
                         <th>Estado</th>
                         <th>Acciones Operativas</th>
                       </tr>
@@ -319,7 +320,7 @@ function App() {
                     <tbody>
                       {pedidos.length === 0 ? (
                         <tr>
-                          <td colSpan="6" style={{ textAlign: 'center', color: '#888', padding: '2rem' }}>
+                          <td colSpan="7" style={{ textAlign: 'center', color: '#888', padding: '2rem' }}>
                             No hay pedidos pendientes en este momento.
                           </td>
                         </tr>
@@ -330,6 +331,7 @@ function App() {
                             <td>{p.grado}</td>
                             <td>{p.producto}</td>
                             <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{p.cantidad}</td>
+                            <td>{p.hora}</td>
                             <td><span className={`status-badge status-${p.estado}`}>{p.estado.toUpperCase()}</span></td>
                             <td>
                               <div className="action-buttons">

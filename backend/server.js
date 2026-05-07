@@ -98,7 +98,7 @@ app.get('/pedidos', (req, res) => {
  */
 app.post('/pedidos', (req, res) => {
     try {
-        const { estudiante, grado, producto, cantidad } = req.body;
+        const { estudiante, grado, producto, cantidad, hora } = req.body;
         
         // Validación de datos de entrada (Data Validation)
         if (!estudiante || typeof estudiante !== 'string' || estudiante.trim() === '') {
@@ -118,6 +118,7 @@ app.post('/pedidos', (req, res) => {
             grado: grado || 'N/A', // Valor por defecto si no se especifica
             producto: producto.trim(),
             cantidad: Number(cantidad) || 1, // Asegura que sea número
+            hora: hora || new Date().toLocaleString(), // Hora enviada por Google Forms
             estado: 'pendiente', // Estados posibles: pendiente, preparacion, listo
             fecha: new Date().toISOString()
         };
@@ -125,7 +126,7 @@ app.post('/pedidos', (req, res) => {
         db.pedidos.push(nuevoPedido);
         writeDB(db);
 
-        console.log(`✅ Nuevo pedido registrado para: ${estudiante} (${producto})`);
+        console.log(`✅ Nuevo pedido registrado para: ${estudiante} (${producto}) a las ${nuevoPedido.hora}`);
         res.status(201).json(nuevoPedido);
     } catch (error) {
         console.error('Error al procesar el POST /pedidos:', error);
