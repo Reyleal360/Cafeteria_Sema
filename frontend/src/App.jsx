@@ -4,7 +4,8 @@ import { Coffee, ShoppingCart, List, CheckCircle, Clock, RefreshCw, X, Filter, L
 // ==========================================
 // CONFIGURACIÓN GLOBAL
 // ==========================================
-const API_URL = 'https://cafeteria-sema.onrender.com';
+// Pega aquí la URL que te dio Google Apps Script al implementarlo como Aplicación Web
+const API_URL = 'https://script.google.com/macros/s/AKfycbxz-8nK1nTWf0MjCYO91I8t1gmsY-QQNtKilJdO34uO6Utegw4fcoT8sWJgkTRXUQth3A/exec';
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdSI3GHCCfBWQGE7MYCMetuovFD3E5Ie5Gaa5WS_dnVfgFCRA/viewform';
 
 function App() {
@@ -59,12 +60,13 @@ function App() {
   // ==========================================
 
   /**
-   * Obtiene el catálogo de productos desde el backend.
+   * Obtiene el catálogo de productos desde Google Apps Script.
    */
   const fetchProductos = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/productos`);
+      // Se añade ?action=productos para que el script sepa qué devolver
+      const res = await fetch(`${API_URL}?action=productos`);
       if (!res.ok) throw new Error('Error en la respuesta del servidor');
       const data = await res.json();
       setProductos(data);
@@ -77,12 +79,13 @@ function App() {
   };
 
   /**
-   * Obtiene la lista de pedidos en tiempo real.
+   * Obtiene la lista de pedidos en tiempo real desde Google Apps Script.
    */
   const fetchPedidos = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/pedidos`);
+      // Se añade ?action=pedidos para que el script devuelva la hoja de pedidos
+      const res = await fetch(`${API_URL}?action=pedidos`);
       if (!res.ok) throw new Error('Error al conectar con la API');
       const data = await res.json();
       // Ordenar pedidos por fecha (los más recientes primero)
@@ -99,10 +102,13 @@ function App() {
    */
   const updateEstado = async (id, nuevoEstado) => {
     try {
-      const res = await fetch(`${API_URL}/pedidos/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado })
+      // Para Google Apps Script, usamos POST enviando la acción en el body
+      // Usamos text/plain para evitar errores de CORS preflight de Google
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        redirect: 'follow', // Importante para Google Apps Script
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'updateEstado', id: id, nuevoEstado: nuevoEstado })
       });
       
       if (!res.ok) throw new Error('No se pudo actualizar el estado');
