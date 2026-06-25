@@ -65,11 +65,21 @@ function App() {
   const fetchProductos = async () => {
     setIsLoading(true);
     try {
-      // Se añade ?action=productos para que el script sepa qué devolver
-      const res = await fetch(`${API_URL}?action=productos`);
-      if (!res.ok) throw new Error('Error en la respuesta del servidor');
-      const data = await res.json();
-      setProductos(data);
+      // Cargamos productos por defecto directamente aquí para que coincidan con tu formulario
+      const productosPredefinidos = [
+        { id: 1, nombre: "Café Americano", precio: 1500, categoria: "Bebidas", imagen: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/A_small_cup_of_coffee.JPG/500px-A_small_cup_of_coffee.JPG" },
+        { id: 2, nombre: "Capuchino", precio: 2000, categoria: "Bebidas", imagen: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Cappuccino_at_Sightglass_Coffee.jpg/500px-Cappuccino_at_Sightglass_Coffee.jpg" },
+        { id: 3, nombre: "Sandwich Jamón y Queso", precio: 1800, categoria: "Comidas", imagen: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Ham_and_cheese_sandwich.jpg/500px-Ham_and_cheese_sandwich.jpg" },
+        { id: 4, nombre: "Empanada de Carne", precio: 1500, categoria: "Comidas", imagen: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Empanadas_de_carne_argentinas.jpg/500px-Empanadas_de_carne_argentinas.jpg" },
+        { id: 5, nombre: "Jugo Natural", precio: 1200, categoria: "Bebidas", imagen: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Orangejuice.jpg/500px-Orangejuice.jpg" },
+        { id: 6, nombre: "Muffin de Chocolate", precio: 1000, categoria: "Snacks", imagen: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Muffin_NIH.jpg/500px-Muffin_NIH.jpg" },
+        { id: 7, nombre: "Te Helado", precio: 1500, categoria: "Bebidas", imagen: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Ice_Tea_with_lemon_slice.jpg/500px-Ice_Tea_with_lemon_slice.jpg" },
+        { id: 8, nombre: "Hot Dog", precio: 2500, categoria: "Comidas", imagen: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Hot_dog_with_mustard.png/500px-Hot_dog_with_mustard.png" }
+      ];
+      
+      // Simulamos un pequeño tiempo de carga
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setProductos(productosPredefinidos);
     } catch (err) { 
       console.error('Error obteniendo productos:', err);
       showNotification('Error al cargar el catálogo. Intenta recargar.', 'error');
