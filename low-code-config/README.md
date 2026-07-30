@@ -1,6 +1,6 @@
 # Integración con Google Apps Script y Google Sheets
 
-Este proyecto utiliza el ecosistema de Google para mantener la aplicación completamente gratis y sin depender de servidores externos o servicios de automatización de pago como Make.com o Zapier.
+Este proyecto utiliza el ecosistema de Google para mantener la aplicación completamente gratis y sin depender de servidores externos o servicios de automatización de pago.
 
 ## Arquitectura
 - **Base de Datos:** Google Sheets
