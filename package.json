@@ -2,9 +2,9 @@
   "name": "cafeteria-sema-root",
   "version": "1.0.0",
   "scripts": {
-    "start:backend": "cd backend && npm start",
+    "build": "cd frontend && npm install && npm run build",
     "start:frontend": "cd frontend && npm run dev",
-    "dev": "concurrently \"npm run start:backend\" \"npm run start:frontend\""
+    "dev": "cd frontend && npm run dev"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
