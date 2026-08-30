@@ -5,7 +5,7 @@ import { Coffee, ShoppingCart, List, CheckCircle, Clock, RefreshCw, X, Filter, L
 // CONFIGURACIÓN GLOBAL
 // ==========================================
 // Pega aquí la URL que te dio Google Apps Script al implementarlo como Aplicación Web
-const API_URL = 'https://script.google.com/macros/s/AKfycbxz-8nK1nTWf0MjCYO91I8t1gmsY-QQNtKilJdO34uO6Utegw4fcoT8sWJgkTRXUQth3A/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyRv_lQjx9YRqgrKb3QcQ2L_ElcGNqYsk_SZlOceeD_aG0e1U-2Jhld_oJVwa17LVfCMg/exec';
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdSI3GHCCfBWQGE7MYCMetuovFD3E5Ie5Gaa5WS_dnVfgFCRA/viewform';
 
 function App() {

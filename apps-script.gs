@@ -1,49 +1,24 @@
 /**
- * BACKEND DE CAFETERÍA SEMA (GOOGLE APPS SCRIPT)
+ * BACKEND DE CAFETERÍA SEMA (GOOGLE APPS SCRIPT) - VERSIÓN INTELIGENTE
  * 
- * Instrucciones:
- * 1. Crea un Google Sheet.
- * 2. Nombra la primera hoja como "Pedidos" y la segunda como "Productos".
- *    En "Productos", añade encabezados (Fila 1): id | nombre | precio | categoria | imagen
- *    En "Pedidos", añade encabezados (Fila 1): id | fecha | estudiante | correo | grado | producto | cantidad | estado
- * 3. Ve a Extensiones > Apps Script y pega todo este código.
- * 4. Guarda y pulsa "Implementar" > "Nueva Implementación".
- * 5. Selecciona "Aplicación web". Ejecutar como "Yo" y Acceso "Cualquier persona".
- * 6. Copia la URL que te da al final y pégala en App.jsx.
+ * Esta versión se adapta AUTOMÁTICAMENTE a la hoja de respuestas que genera Google Forms
+ * (no importa si la pestaña se llama "Respuestas de formulario 1", "Form_Responses" o "Pedidos",
+ * ni si los encabezados son "Marca temporal", "Nombre del estudiante", "Correo Electronico", etc.).
  */
 
-// Nombre de las hojas
-const HOJA_PEDIDOS = "Pedidos";
-const HOJA_PRODUCTOS = "Productos";
-
-/**
- * Función que maneja las peticiones GET (Cuando el frontend pide datos)
- */
 function doGet(e) {
-  var action = e.parameter.action;
+  var action = e ? e.parameter.action : null;
   
   if (action === 'productos') {
-    return retornarDatosComoJSON(HOJA_PRODUCTOS);
-  } else if (action === 'pedidos') {
-    return retornarDatosComoJSON(HOJA_PEDIDOS);
+    return ContentService.createTextOutput(JSON.stringify(leerProductos())).setMimeType(ContentService.MimeType.JSON);
   } else {
-    // Si no se especifica acción, retorna ambos
-    var productos = leerHoja(HOJA_PRODUCTOS);
-    var pedidos = leerHoja(HOJA_PEDIDOS);
-    
-    return ContentService.createTextOutput(JSON.stringify({
-      productos: productos,
-      pedidos: pedidos
-    })).setMimeType(ContentService.MimeType.JSON);
+    // Por defecto devuelve pedidos
+    return ContentService.createTextOutput(JSON.stringify(leerPedidos())).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-/**
- * Función que maneja las peticiones POST (Cuando el frontend actualiza un pedido)
- */
 function doPost(e) {
   try {
-    // Los datos vienen en e.postData.contents
     var body = JSON.parse(e.postData.contents);
     
     if (body.action === 'updateEstado') {
@@ -52,31 +27,107 @@ function doPost(e) {
     }
     
     if (body.action === 'nuevoPedido') {
-      // Opcional: Si decides hacer el POST de nuevo pedido desde React en vez de Google Forms
       var resultado = crearPedido(body);
       return ContentService.createTextOutput(JSON.stringify(resultado)).setMimeType(ContentService.MimeType.JSON);
     }
 
     return ContentService.createTextOutput(JSON.stringify({ error: "Acción no reconocida" })).setMimeType(ContentService.MimeType.JSON);
-    
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({ error: error.toString() })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 /**
- * Lee todos los datos de una hoja y los convierte en un Array de Objetos JSON
+ * Obtiene automáticamente la hoja donde Google Forms guarda las respuestas
  */
-function leerHoja(nombreHoja) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
+function obtenerHojaPedidos() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Pedidos") || 
+              ss.getSheetByName("Respuestas de formulario 1") || 
+              ss.getSheetByName("Form_Responses") || 
+              ss.getSheets()[0];
+  return sheet;
+}
+
+/**
+ * Busca el índice de una columna por varios nombres posibles
+ */
+function findHeaderIndex(headers, possibleNames) {
+  for (var i = 0; i < headers.length; i++) {
+    var h = String(headers[i]).toLowerCase().trim();
+    for (var j = 0; j < possibleNames.length; j++) {
+      var target = possibleNames[j].toLowerCase();
+      if (h === target || h.indexOf(target) !== -1) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+/**
+ * Lee y mapea los pedidos de la hoja de Google Forms
+ */
+function leerPedidos() {
+  var sheet = obtenerHojaPedidos();
   if (!sheet) return [];
-  
+
   var data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return []; // Solo encabezados o vacía
+  if (data.length <= 1) return [];
+
+  var rawHeaders = data[0];
+
+  var idxMarcaTemporal = findHeaderIndex(rawHeaders, ['id', 'marca temporal', 'timestamp', 'fecha']);
+  var idxEstudiante = findHeaderIndex(rawHeaders, ['estudiante', 'nombre del estudiante', 'nombre']);
+  var idxGrado = findHeaderIndex(rawHeaders, ['grado', 'curso']);
+  var idxProducto = findHeaderIndex(rawHeaders, ['producto', 'productos']);
+  var idxCantidad = findHeaderIndex(rawHeaders, ['cantidad']);
+  var idxCorreo = findHeaderIndex(rawHeaders, ['correo', 'correo electronico', 'email', 'correo electrónico']);
+  var idxEstado = findHeaderIndex(rawHeaders, ['estado']);
+
+  // Si no existe la columna de estado, la creamos en la hoja
+  if (idxEstado === -1) {
+    sheet.getRange(1, rawHeaders.length + 1).setValue("estado");
+    idxEstado = rawHeaders.length;
+    rawHeaders.push("estado");
+  }
+
+  var result = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    
+    // Ignorar filas completamente vacías
+    var hasContent = row.some(function(cell) { return cell !== "" && cell !== null; });
+    if (!hasContent) continue;
+
+    var timestampVal = idxMarcaTemporal !== -1 ? row[idxMarcaTemporal] : "";
+    var idRow = timestampVal ? (new Date(timestampVal).getTime() || (i + 1)) : (i + 1);
+    var estadoVal = (idxEstado !== -1 && row[idxEstado]) ? String(row[idxEstado]).trim() : "pendiente";
+
+    result.push({
+      id: idRow,
+      fecha: timestampVal ? String(timestampVal) : new Date().toLocaleString(),
+      estudiante: idxEstudiante !== -1 && row[idxEstudiante] ? String(row[idxEstudiante]) : "Estudiante",
+      grado: idxGrado !== -1 && row[idxGrado] ? String(row[idxGrado]) : "N/A",
+      producto: idxProducto !== -1 && row[idxProducto] ? String(row[idxProducto]) : "Pedido",
+      cantidad: idxCantidad !== -1 && row[idxCantidad] ? row[idxCantidad] : 1,
+      correo: idxCorreo !== -1 && row[idxCorreo] ? String(row[idxCorreo]) : "",
+      estado: estadoVal || "pendiente"
+    });
+  }
+
+  return result;
+}
+
+function leerProductos() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Productos");
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
   
   var headers = data[0];
   var result = [];
-  
   for (var i = 1; i < data.length; i++) {
     var obj = {};
     for (var j = 0; j < headers.length; j++) {
@@ -84,57 +135,57 @@ function leerHoja(nombreHoja) {
     }
     result.push(obj);
   }
-  
   return result;
 }
 
-function retornarDatosComoJSON(nombreHoja) {
-  var data = leerHoja(nombreHoja);
-  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
-}
-
 /**
- * Actualiza el estado de un pedido y envía correo si está "listo"
+ * Actualiza el estado de un pedido en la hoja y envía correo si está "listo"
  */
 function actualizarEstado(id, nuevoEstado) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_PEDIDOS);
+  var sheet = obtenerHojaPedidos();
+  if (!sheet) return false;
+
   var data = sheet.getDataRange().getValues();
-  var headers = data[0];
-  
-  var colId = headers.indexOf('id');
-  var colEstado = headers.indexOf('estado');
-  var colCorreo = headers.indexOf('correo');
-  var colEstudiante = headers.indexOf('estudiante');
-  var colProducto = headers.indexOf('producto');
-  
-  if (colId === -1 || colEstado === -1) return false;
-  
+  if (data.length <= 1) return false;
+
+  var rawHeaders = data[0];
+
+  var idxMarcaTemporal = findHeaderIndex(rawHeaders, ['id', 'marca temporal', 'timestamp', 'fecha']);
+  var idxEstudiante = findHeaderIndex(rawHeaders, ['estudiante', 'nombre del estudiante', 'nombre']);
+  var idxProducto = findHeaderIndex(rawHeaders, ['producto', 'productos']);
+  var idxCorreo = findHeaderIndex(rawHeaders, ['correo', 'correo electronico', 'email', 'correo electrónico']);
+  var idxEstado = findHeaderIndex(rawHeaders, ['estado']);
+
+  if (idxEstado === -1) {
+    sheet.getRange(1, rawHeaders.length + 1).setValue("estado");
+    idxEstado = rawHeaders.length;
+  }
+
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][colId]) === String(id)) {
-      // Actualiza la celda de estado (i + 1 porque las celdas empiezan en fila 1)
-      sheet.getRange(i + 1, colEstado + 1).setValue(nuevoEstado);
-      
+    var row = data[i];
+    var timestampVal = idxMarcaTemporal !== -1 ? row[idxMarcaTemporal] : "";
+    var rowId = timestampVal ? (new Date(timestampVal).getTime() || (i + 1)) : (i + 1);
+
+    if (String(rowId) === String(id) || String(i + 1) === String(id)) {
+      // Actualiza la celda correspondiente al estado
+      sheet.getRange(i + 1, idxEstado + 1).setValue(nuevoEstado);
+
       // Si el nuevo estado es "listo", enviar correo
       if (nuevoEstado.toLowerCase() === 'listo' || nuevoEstado.toLowerCase() === 'lista') {
-        var correoDestino = data[i][colCorreo];
-        if (correoDestino && correoDestino.indexOf('@') !== -1) {
-          enviarCorreoNotificacion(
-            correoDestino, 
-            data[i][colEstudiante], 
-            data[i][colProducto]
-          );
+        var correoDestino = idxCorreo !== -1 ? row[idxCorreo] : "";
+        var nomEstudiante = idxEstudiante !== -1 ? row[idxEstudiante] : "Estudiante";
+        var nomProducto = idxProducto !== -1 ? row[idxProducto] : "Pedido";
+
+        if (correoDestino && String(correoDestino).indexOf('@') !== -1) {
+          enviarCorreoNotificacion(correoDestino, nomEstudiante, nomProducto);
         }
       }
-      
       return true;
     }
   }
   return false;
 }
 
-/**
- * Función para enviar correo mediante el servicio nativo de Google (Gmail/MailApp)
- */
 function enviarCorreoNotificacion(correo, estudiante, producto) {
   var asunto = "¡Tu pedido está listo! ☕";
   var mensaje = "Hola " + estudiante + ",\n\n" +
@@ -155,28 +206,25 @@ function enviarCorreoNotificacion(correo, estudiante, producto) {
       htmlBody: htmlMensaje
     });
   } catch (e) {
-    // Si falla, no hacer nada para no romper el script
+    // Si falla la notificación por correo, ignorar para no romper el script
   }
 }
 
-/**
- * Función adicional (OPCIONAL) si el POST se hiciera por React y no Google Forms
- */
 function crearPedido(body) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_PEDIDOS);
+  var sheet = obtenerHojaPedidos();
   var nuevoId = new Date().getTime();
   var fecha = new Date().toLocaleString();
   
   sheet.appendRow([
-    nuevoId,
     fecha,
     body.estudiante,
-    body.correo || "Sin correo",
     body.grado || "N/A",
     body.producto,
     body.cantidad || 1,
+    body.correo || "",
     "pendiente"
   ]);
   
   return { success: true, id: nuevoId };
 }
+
